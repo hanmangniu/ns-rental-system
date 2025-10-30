@@ -95,9 +95,10 @@
         <div class="px-4 py-5 sm:p-6">
           <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">快速操作</h3>
           <div class="grid grid-cols-2 gap-4">
-            <NuxtLink
-              to="/rentals"
-              class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            <button
+              type="button"
+              @click="handleCreateRental"
+              class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors w-full text-left"
             >
               <div class="flex-shrink-0">
                 <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -110,7 +111,7 @@
                 <p class="text-sm font-medium text-gray-900">新建租赁</p>
                 <p class="text-sm text-gray-500">创建新的租赁订单</p>
               </div>
-            </NuxtLink>
+            </button>
 
             <NuxtLink
               to="/customers"
@@ -249,12 +250,28 @@ definePageMeta({
 })
 
 // 检查登录状态
-const isLoggedIn = inject('isLoggedIn')
+const isLoggedIn = ref(false)
 
-// 监听登录状态变化，只在状态变为false时跳转
-watch(isLoggedIn, (newValue) => {
-  if (newValue === false) {
-    navigateTo('/login')
+// 检查本地登录状态
+onMounted(() => {
+  if (process.client) {
+    const token = localStorage.getItem('auth-token')
+    const userData = localStorage.getItem('user')
+    
+    if (token && userData) {
+      isLoggedIn.value = true
+    } else {
+      // 如果没有登录信息，跳转到登录页
+      navigateTo('/login')
+    }
   }
 })
+
+// 处理新建租赁点击
+const router = useRouter()
+const handleCreateRental = (e) => {
+  if (e) e.preventDefault()
+  console.log('点击新建租赁按钮 -> 跳转 /rentals/create')
+  router.push('/rentals/create')
+}
 </script>

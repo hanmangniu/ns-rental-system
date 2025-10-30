@@ -1,8 +1,21 @@
 <template>
   <div>
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">租赁管理</h1>
-      <p class="mt-2 text-gray-600">管理所有租赁订单和设备</p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">租赁管理</h1>
+          <p class="mt-2 text-gray-600">管理所有租赁订单和设备</p>
+        </div>
+        <NuxtLink
+          to="/rentals/create"
+          class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          新建租赁
+        </NuxtLink>
+      </div>
     </div>
 
     <div class="bg-white shadow rounded-lg">
@@ -21,7 +34,8 @@
 
 <script setup>
 definePageMeta({
-  layout: 'default',
-  middleware: 'auth'
+  layout: 'default'
 })
 </script>
+
+
