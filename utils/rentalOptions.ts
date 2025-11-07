@@ -7,8 +7,8 @@
  * 店铺列表
  */
 export const stores = [
-  { id: 1, name: "绘光数码科技" },
-  { id: 2, name: "绘光数码分店" },
+  { id: 26555, name: "绘光数码科技" },
+  { id: 26812, name: "绘光数码分店" },
 ];
 
 /**
@@ -37,10 +37,10 @@ export const deviceCapacities = [
  * 手柄数量
  */
 export const controllerCounts = [
-  { id: 1, name: "1个手柄" },
-  { id: 2, name: "2个手柄" },
-  { id: 3, name: "3个手柄" },
-  { id: 4, name: "4个手柄" },
+  { id: 1, name: "1副手柄" },
+  { id: 2, name: "2副手柄" },
+  { id: 3, name: "3副手柄" },
+  { id: 4, name: "4副手柄" },
 ];
 
 /**

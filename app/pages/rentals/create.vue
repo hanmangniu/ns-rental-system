@@ -29,6 +29,35 @@
       </div>
     </div>
 
+    <!-- 自动识别（多行输入） -->
+    <div class="bg-white shadow rounded-lg mb-6">
+      <div class="px-4 py-5 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">自动识别</h3>
+          <button
+            type="button"
+            @click="handleAutoParse"
+            :disabled="!form.autoParseText || !form.autoParseText.trim()"
+            class="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+          >
+            识别
+          </button>
+        </div>
+        <label
+          for="autoParseText"
+          class="block text-sm font-medium text-gray-700"
+          >请输入需要自动识别的内容</label
+        >
+        <textarea
+          id="autoParseText"
+          v-model="form.autoParseText"
+          rows="4"
+          class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          placeholder="可粘贴客服聊天、客户需求等文本，后续将自动解析填充表单"
+        />
+      </div>
+    </div>
+
     <!-- 表单 -->
     <form @submit.prevent="handleSubmit" class="space-y-8">
       <div class="bg-white shadow rounded-lg">
@@ -423,6 +452,65 @@ const form = ref({
   rentalDurationOther: "",
   latestShippingDate: "",
   remarks: "",
+  autoParseText: `2025-10-29 11:55:04
+订单号：2025102911521560
+店铺(26555)：绘光数码科技
+订单续租：开启
+订单结算比例：92.00%
+续租每期费率：1.00%
+寄出方式：包邮
+归还方式：自付
+直付通订单
+人人租小程序
+预租订单
+交易规范订单
+自选租期
+支付宝免密代扣
+服务详情
+晚发必赔
+缺货必赔
+芝麻租物订单
+注意事项
+管控订单
+
+预览
+配件清单(7)
+任天堂Switch 续航版游戏机 95新 租物
+套餐： 到期须归还 主机+1副手柄+国行版本 64GB畅玩版，装满游戏开机即玩
+租期： 2025-11-09~2025-11-23 (共15天)
+押金：￥ 0.00
+信用评估额度：￥1000.00
+商品押金：￥1000.00
+租金：108.00
+详情
+数量：1
+运费：￥0.00
+保险：￥0.00
+实付款：￥108
+详细
+付款时间：2025-10-29 11:52:40
+租金：
+￥108.00/￥108.00
+已结租金:￥0.00
+收起
+应付总费用：￥108.00
+应付总租金：￥108.00
+应付运费：￥0.00
+优惠减免：￥0
+实付金额：￥108.00
+到期购买价：该商品未设置可到期购买
+少少伟
+18255566570
+安徽省阜阳市颍州区颍西街道清河西路100号阜阳师范大学西湖校区第一生活区
+注册手机: 18255566570
+[一键隐藏]
+[一键复制]
+成功下单1次
+累计下单1次
+待发货
+最晚发货时间：2025年11月07日 00:00:00
+订单备注：【预租订单】：预租订单，待发货；【?月?日发货】；待发货[11月6日发货] 
+认证资料： 王少伟  (341622200411080575) 人脸识别通过性别：男年龄：20会员等级：VIP0`,
 });
 
 // 状态
@@ -436,6 +524,161 @@ onMounted(() => {
     .toISOString()
     .split("T")[0];
 });
+// 自动识别：从 autoParseText 解析并回填表单
+const handleAutoParse = () => {
+  try {
+    const raw = (form.value.autoParseText || "").replace(/\r\n?/g, "\n");
+    const lines = raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    // 1) 订单号/订单编号
+    {
+      const m = raw.match(/订单(?:号|编号)[：:]+\s*([A-Za-z0-9_-]+)/);
+      if (m) form.value.orderNumber = m[1];
+    }
+
+    // 2) 店铺(123) -> storeId
+    {
+      const m = raw.match(/店铺[^\n]*?\((\d+)\)/);
+      if (m) {
+        const id = Number(m[1]);
+        if (stores.some((s) => s.id === id)) form.value.storeId = id;
+      }
+    }
+
+    // 3) 到期购买价 的下三行 -> shippingAddress（逗号分隔）
+    {
+      const idx = lines.findIndex((l) => l.includes("到期购买价"));
+      if (idx !== -1) {
+        const addr = [lines[idx + 1], lines[idx + 2], lines[idx + 3]]
+          .filter(Boolean)
+          .join("，");
+        if (addr) form.value.shippingAddress = addr;
+      }
+    }
+
+    // 4) 从“预览”到“租期”之间匹配 设备类型/容量/手柄数量
+    {
+      const sIdx = lines.findIndex((l) => l.includes("预览"));
+      const eIdx = lines.findIndex((l) => l.includes("租期"));
+      const between = sIdx !== -1 && eIdx !== -1 && eIdx > sIdx
+        ? lines.slice(sIdx, eIdx + 1).join("\n")
+        : raw;
+
+      // 设备类型：根据"续航"/"OLED"和"畅玩"的组合匹配
+      const has续航 = between.includes("续航");
+      const hasOLED = between.includes("OLED");
+      const has畅玩 = between.includes("畅玩");
+      
+      if (has续航 && has畅玩) {
+        form.value.deviceType = 1; // Switch 续航版(破解)
+      } else if (hasOLED && has畅玩) {
+        form.value.deviceType = 2; // Switch OLED 版(破解)
+      } else if (has续航 && !has畅玩) {
+        form.value.deviceType = 3; // Switch 续航版(正版)
+      } else if (hasOLED && !has畅玩) {
+        form.value.deviceType = 4; // Switch OLED 版(正版)
+      } else {
+        form.value.deviceType = 999; // 其他
+      }
+
+      // 设备容量：先枚举名称，再兜底匹配 \d+(GB|TB)
+      const capHit = deviceCapacities.find((c) => between.includes(c.name));
+      if (capHit) {
+        form.value.deviceCapacity = capHit.id;
+      } else {
+        const m = between.match(/(\d+)\s*(TB|GB)/i);
+        if (m) {
+          const val = (m[2].toUpperCase() === "TB")
+            ? `${m[1]}TB`
+            : `${m[1]}GB`;
+          const cap = deviceCapacities.find((c) => c.name.toUpperCase() === val.toUpperCase());
+          if (cap) form.value.deviceCapacity = cap.id;
+        }
+      }
+
+      // 手柄数量：X副手柄/手柄X(副)
+      const cm = between.match(/(\d+)\s*副?手柄|手柄\s*(\d+)\s*副?/);
+      const cnum = cm ? Number(cm[1] || cm[2]) : undefined;
+      if (cnum) {
+        const ctrl = controllerCounts.find((c) => Number(c.id) === cnum);
+        if (ctrl) form.value.controllerCount = ctrl.id;
+      } else {
+        const ctrlByName = controllerCounts.find((c) => between.includes(c.name));
+        if (ctrlByName) form.value.controllerCount = ctrlByName.id;
+      }
+    }
+
+    // 5) 租期：起始日期与天数
+    {
+      const rentLine = lines.find((l) => l.includes("租期")) || "";
+      // 支持形如：2025-11-09~2025-11-23 (共15天)
+      const dateRange = rentLine.match(/(20\d{2}-\d{1,2}-\d{1,2}).*?(20\d{2}-\d{1,2}-\d{1,2})/);
+      if (dateRange) {
+        const d = new Date(dateRange[1]);
+        if (!isNaN(d.getTime())) {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          form.value.startDate = `${yyyy}-${mm}-${dd}`;
+        }
+      } else {
+        const d1 = rentLine.match(/(20\d{2}-\d{1,2}-\d{1,2})/);
+        if (d1) form.value.startDate = d1[1];
+      }
+      const dm = rentLine.match(/共\s*(\d+)\s*天|([0-9]+)\s*天/);
+      const dnum = dm ? Number(dm[1] || dm[2]) : undefined;
+      if (dnum) {
+        const label = `${dnum}天`;
+        const dur = rentalDurations.find((x) => x.name === label);
+        if (dur) {
+          form.value.rentalDuration = dur.id;
+          form.value.rentalDurationOther = "";
+        } else {
+          form.value.rentalDuration = 999;
+          form.value.rentalDurationOther = label;
+        }
+      }
+    }
+
+    // 6) 最晚发货时间：支持 “2025年11月07日 00:00:00” 或 “YYYY-MM-DD HH:mm[:ss]”
+    {
+      const latestLine = lines.find((l) => l.includes("最晚发货时间")) || "";
+      let iso = "";
+      let m1 = latestLine.match(/(20\d{2})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (m1) {
+        const yyyy = m1[1];
+        const mm = String(Number(m1[2])).padStart(2, "0");
+        const dd = String(Number(m1[3])).padStart(2, "0");
+        const HH = String(Number(m1[4])).padStart(2, "0");
+        const MM = m1[5];
+        const SS = m1[6] ? m1[6] : "00";
+        iso = `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+      } else {
+        const m2 = latestLine.match(/(20\d{2}-\d{1,2}-\d{1,2})\s+(\d{1,2}:\d{2}(?::\d{2})?)/);
+        if (m2) {
+          const d = new Date(`${m2[1]} ${m2[2]}`.replace(/-/g, "/"));
+          if (!isNaN(d.getTime())) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            const HH = String(d.getHours()).padStart(2, "0");
+            const MM = String(d.getMinutes()).padStart(2, "0");
+            const SS = String(d.getSeconds()).padStart(2, "0");
+            iso = `${yyyy}-${mm}-${dd}T${HH}:${MM}:${SS}`;
+          }
+        }
+      }
+      if (iso) form.value.latestShippingDate = iso;
+    }
+
+    console.log("[AutoParse] 解析完成:", JSON.stringify(form.value, null, 2));
+  } catch (e) {
+    console.error("自动识别失败:", e);
+  }
+};
 
 // 提交表单
 const handleSubmit = async () => {
@@ -452,6 +695,7 @@ const handleSubmit = async () => {
       isSubmitting.value = false;
       return;
     }
+
     if (
       isOtherOption(form.value.rentalDuration) &&
       !form.value.rentalDurationOther.trim()
