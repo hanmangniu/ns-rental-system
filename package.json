@@ -15,7 +15,9 @@
     "vue-router": "^4.6.3",
     "@nuxtjs/tailwindcss": "^6.12.1",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "html5-qrcode": "^2.3.8",
+    "tesseract.js": "^4.1.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
