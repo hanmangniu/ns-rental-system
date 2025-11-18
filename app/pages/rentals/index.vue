@@ -197,7 +197,7 @@
             <tr v-for="order in paginatedOrders" :key="order.id" class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium sticky left-0 z-10 bg-white">
                 <NuxtLink
-                  :to="`/rentals/${order.id}`"
+                  :to="`/rentals/${order.orderNumber}`"
                   class="text-indigo-600 hover:text-indigo-900 hover:underline"
                 >
                   {{ order.orderNumber }}
@@ -529,7 +529,7 @@ const handleReset = () => {
 
 // 去发货
 const handleShip = (order) => {
-  navigateTo(`/rentals/ship/${order.id}`)
+  navigateTo(`/rentals/ship/${order.orderNumber}`)
 }
 
 // 辅助方法已从 rentalOptions 导入

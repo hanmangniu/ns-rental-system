@@ -4,7 +4,7 @@
     <nav class="mb-6 text-sm text-gray-500">
       <NuxtLink to="/rentals" class="hover:underline">租赁管理</NuxtLink>
       <span class="mx-2">/</span>
-      <NuxtLink :to="`/rentals/${orderId}`" class="hover:underline">租赁详情</NuxtLink>
+      <NuxtLink :to="`/rentals/${orderNumber}`" class="hover:underline">租赁详情</NuxtLink>
       <span class="mx-2">/</span>
       <span>发货</span>
     </nav>
@@ -15,10 +15,10 @@
         <h1 class="text-2xl font-bold text-gray-900">订单发货</h1>
         <p class="mt-1 text-gray-600">订单编号：{{ shippingForm.orderNumber || '-' }}</p>
       </div>
-      <NuxtLink
-        :to="`/rentals/${orderId}`"
-        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-      >返回详情</NuxtLink>
+        <NuxtLink
+          :to="`/rentals/${orderNumber}`"
+          class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+        >返回详情</NuxtLink>
     </div>
 
     <!-- 表单 -->
@@ -206,7 +206,7 @@
 
       <!-- 操作按钮 -->
       <div class="flex justify-end space-x-2">
-        <NuxtLink :to="`/rentals/${orderId}`" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+        <NuxtLink :to="`/rentals/${orderNumber}`" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
           取消
         </NuxtLink>
         <button type="submit" :disabled="submitting" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
@@ -229,7 +229,32 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode"
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
-const orderId = Number(route.params.id)
+const orderNumber = route.params.id
+
+// 临时：与列表页一致的模拟数据（用于查找订单 id）
+const mockOrders = ref([
+  {
+    id: 1,
+    orderNumber: 'R20250115001',
+  },
+  {
+    id: 2,
+    orderNumber: 'R20250115002',
+  },
+  {
+    id: 3,
+    orderNumber: 'R20250115003',
+  },
+])
+
+// 通过 orderNumber 查找订单，获取实际 id
+const order = computed(() => {
+  return mockOrders.value.find(o => o.orderNumber === orderNumber)
+})
+
+const orderId = computed(() => {
+  return order.value?.id || null
+})
 
 const submitting = ref(false)
 const files = ref([])
@@ -254,17 +279,22 @@ const shippingForm = reactive({
 })
 
 onMounted(() => {
+  if (!orderId.value) return
+  
+  // 设置订单编号
+  shippingForm.orderNumber = orderNumber
+  
   // 若详情页曾保存过订单编号，可展示；否则忽略
-  const saved = localStorage.getItem(`order-${orderId}`)
+  const saved = localStorage.getItem(`order-${orderId.value}`)
   if (saved) {
     try {
       const o = JSON.parse(saved)
-      shippingForm.orderNumber = o.orderNumber || ''
+      shippingForm.orderNumber = o.orderNumber || orderNumber
     } catch {}
   }
 
   // 载入已保存的发货信息
-  const shipSaved = localStorage.getItem(`shipping-${orderId}`)
+  const shipSaved = localStorage.getItem(`shipping-${orderId.value}`)
   if (shipSaved) {
     try {
       const s = JSON.parse(shipSaved)
@@ -415,6 +445,8 @@ onUnmounted(() => {
 
 const handleSubmit = async () => {
   if (!shippingForm.expressVendor || !shippingForm.expressNo) return
+  if (!orderId.value) return
+  
   submitting.value = true
   try {
     // 模拟上传，将预览地址当作已存储图片
@@ -428,12 +460,12 @@ const handleSubmit = async () => {
       images: previews.value,
       shippedAt: new Date().toISOString(),
     }
-    localStorage.setItem(`shipping-${orderId}`, JSON.stringify(payload))
+    localStorage.setItem(`shipping-${orderId.value}`, JSON.stringify(payload))
 
     // 可选：更新订单状态为已发货（2）
     const listKey = 'orders-status-overwrite'
     const overwrite = JSON.parse(localStorage.getItem(listKey) || '{}')
-    overwrite[orderId] = 2
+    overwrite[orderId.value] = 2
     localStorage.setItem(listKey, JSON.stringify(overwrite))
 
     await navigateTo('/rentals')

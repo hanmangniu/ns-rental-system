@@ -131,7 +131,7 @@
             <h3 class="text-lg leading-6 font-medium text-gray-900">发货信息</h3>
             <NuxtLink
               v-if="order.status === 1"
-              :to="`/rentals/ship/${orderId}`"
+              :to="`/rentals/ship/${order.id}`"
               class="text-indigo-600 hover:text-indigo-900 hover:underline"
             >去发货</NuxtLink>
           </div>
@@ -193,7 +193,7 @@ import {
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
-const orderId = Number(route.params.id)
+const orderNumber = route.params.id
 
 // 临时：与列表页一致的模拟数据
 const mockOrders = ref([
@@ -240,14 +240,20 @@ const mockOrders = ref([
   },
 ])
 
-const order = computed(() => mockOrders.value.find(o => o.id === orderId))
+// 通过 orderNumber 查找订单
+const order = computed(() => {
+  return mockOrders.value.find(o => o.orderNumber === orderNumber)
+})
 
 onMounted(() => {
-  const shipSaved = localStorage.getItem(`shipping-${orderId}`)
+  if (!order.value) return
+  
+  const currentOrderId = order.value.id
+  const shipSaved = localStorage.getItem(`shipping-${currentOrderId}`)
   if (shipSaved) {
     try {
       const saved = JSON.parse(shipSaved)
-      const idx = mockOrders.value.findIndex(o => o.id === orderId)
+      const idx = mockOrders.value.findIndex(o => o.id === currentOrderId)
       if (idx > -1) {
         mockOrders.value[idx] = {
           ...mockOrders.value[idx],
@@ -277,11 +283,11 @@ onMounted(() => {
   }
 
   // 合并本地编辑（非基本信息）
-  const editSaved = localStorage.getItem(`order-edit-${orderId}`)
+  const editSaved = localStorage.getItem(`order-edit-${currentOrderId}`)
   if (editSaved) {
     try {
       const e = JSON.parse(editSaved)
-      const idx = mockOrders.value.findIndex(o => o.id === orderId)
+      const idx = mockOrders.value.findIndex(o => o.id === currentOrderId)
       if (idx > -1) {
         mockOrders.value[idx] = {
           ...mockOrders.value[idx],
